@@ -63,6 +63,7 @@ MY_URLS = [
     "https://th.wikipedia.org/wiki/มนุษยศาสตร์",
     "https://th.wikipedia.org/wiki/ภาษาศาสตร์",
     "https://th.wikipedia.org/wiki/การเขียนโปรแกรมคอมพิวเตอร์",
+    "https://www.athometh.com/math/solving-equations/",
 ]
 # ──────────────────────────────────────────────────────────────────────────────
 
