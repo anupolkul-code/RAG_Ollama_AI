@@ -1,0 +1,20 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# ── RAG: ไม่ต้อง push ขึ้น GitHub ─────────────────────────────────
+# Knowledge base (FAISS index) — สร้างใหม่ได้จาก my_data/
+my_knowledge_base/
+
+# ข้อมูลส่วนตัว — ถ้าไม่อยากเอาขึ้น ให้เปิด comment นี้
+# my_data/
+
+# uv lock (optional: ถ้าอยากให้คนอื่น reproduce ได้เหมือนกัน ลบบรรทัดนี้ออก)
+# uv.lock
