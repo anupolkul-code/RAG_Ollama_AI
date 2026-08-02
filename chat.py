@@ -30,7 +30,39 @@ TRACKER_FILE        = "my_knowledge_base/.indexed_files.json"  # ติดตา
 
 # ✏️  เพิ่ม URL ที่ต้องการดึงข้อมูลที่นี่ (ต้องการอินเทอร์เน็ตแค่ครั้งแรก)
 MY_URLS = [
+    # ── ภาษาอังกฤษ ───────────────────────────────────────────────────
     "https://en.wikipedia.org/wiki/Python_(programming_language)",
+    "https://en.wikipedia.org/wiki/Mathematics",
+    "https://en.wikipedia.org/wiki/Physics",
+    "https://en.wikipedia.org/wiki/Chemistry",
+    "https://en.wikipedia.org/wiki/Biology",
+    "https://en.wikipedia.org/wiki/Computer_science",
+    "https://en.wikipedia.org/wiki/Electrical_engineering",
+    "https://en.wikipedia.org/wiki/Mechanical_engineering",
+    "https://en.wikipedia.org/wiki/Civil_engineering",
+    "https://en.wikipedia.org/wiki/Chemical_engineering",
+    "https://en.wikipedia.org/wiki/Aerospace_engineering",
+    "https://en.wikipedia.org/wiki/Biomedical_engineering",
+    "https://en.wikipedia.org/wiki/Environmental_engineering",
+    "https://en.wikipedia.org/wiki/Information_technology",
+    "https://en.wikipedia.org/wiki/History",
+    "https://en.wikipedia.org/wiki/Social_science",
+    "https://en.wikipedia.org/wiki/Humanities",
+    "https://en.wikipedia.org/wiki/Linguistics",
+    "https://en.wikipedia.org/wiki/Program",
+
+    # ── ภาษาไทย (Thai Wikipedia) ──────────────────────────────────────
+    "https://th.wikipedia.org/wiki/คณิตศาสตร์",
+    "https://th.wikipedia.org/wiki/ฟิสิกส์",
+    "https://th.wikipedia.org/wiki/เคมี",
+    "https://th.wikipedia.org/wiki/ชีววิทยา",
+    "https://th.wikipedia.org/wiki/วิทยาการคอมพิวเตอร์",
+    "https://th.wikipedia.org/wiki/ประวัติศาสตร์",
+    "https://th.wikipedia.org/wiki/ภาษาไทย",
+    "https://th.wikipedia.org/wiki/สังคมศาสตร์",
+    "https://th.wikipedia.org/wiki/มนุษยศาสตร์",
+    "https://th.wikipedia.org/wiki/ภาษาศาสตร์",
+    "https://th.wikipedia.org/wiki/การเขียนโปรแกรมคอมพิวเตอร์",
 ]
 # ──────────────────────────────────────────────────────────────────────────────
 
