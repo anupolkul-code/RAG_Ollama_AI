@@ -67,8 +67,8 @@ def check_and_embed_new_files() -> bool:
     tracker = load_tracker()
     new_sources = []
 
-    # ── ตรวจไฟล์ใน my_data/ ──────────────────────────────────────────
-    for f in data_path.iterdir():
+    # ── ตรวจไฟล์ใน my_data/ (รวมโฟลเดอร์ย่อย) ───────────────────────
+    for f in data_path.rglob("*"):
         if f.is_file():
             sig = get_file_signature(f)
             if tracker.get(str(f)) != sig:

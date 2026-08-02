@@ -242,14 +242,76 @@ def add_to_existing(
 # SECTION 4: RAG Query — ค้นหาและถาม Ollama (offline)
 # =============================================================================
 
+def _find_matching_source(vectorstore: FAISS, question: str) -> str | None:
+    """
+    ตรวจว่าคำถามกล่าวถึงชื่อไฟล์ใดใน vectorstore หรือไม่
+    คืน path ของ source ที่ตรงกัน หรือ None ถ้าไม่มี
+    """
+    all_sources: set[str] = set()
+    for doc_id in vectorstore.docstore._dict:
+        doc = vectorstore.docstore._dict[doc_id]
+        src = doc.metadata.get("source", "")
+        if src:
+            all_sources.add(src)
+
+    q_lower = question.lower()
+    for src in all_sources:
+        stem = Path(src).stem.lower()
+        name = Path(src).name.lower()
+        if stem in q_lower or name in q_lower:
+            return src
+    return None
+
+
+def _keyword_search(
+    vectorstore: FAISS,
+    question: str,
+    k: int = 10,
+) -> list[tuple]:
+    """
+    ค้นหาด้วย Keyword matching (BM25-style) โดยไม่ต้องพึ่ง embedding model
+    ใช้เป็น fallback หรือ hybrid เมื่อ semantic search ไม่แม่นพอ
+
+    Returns list of (Document, keyword_score) เรียงจากมากไปน้อย
+    """
+    import re
+
+    # แยกคำจากคำถาม (กรองคำสั้น ๆ ที่ไม่มีความหมาย)
+    tokens = re.sub(r"[^\wก-๙]", " ", question.lower()).split()
+    keywords = [t for t in tokens if len(t) > 1]
+
+    if not keywords:
+        return []
+
+    scored: list[tuple] = []
+    all_docs = list(vectorstore.docstore._dict.values())
+
+    for doc in all_docs:
+        content = doc.page_content.lower()
+        # นับจำนวนครั้งที่แต่ละ keyword ปรากฏ (term frequency)
+        tf_score = sum(content.count(kw) for kw in keywords)
+        # bonus: ถ้า keyword ปรากฏในประโยคเดียวกัน (proximity bonus)
+        prox_bonus = sum(1 for kw in keywords if kw in content) / max(len(keywords), 1)
+        final_score = tf_score + prox_bonus * 5
+        if final_score > 0:
+            scored.append((doc, final_score))
+
+    scored.sort(key=lambda x: x[1], reverse=True)
+    return scored[:k]
+
+
 def ask(
     vectorstore: FAISS,
     question: str,
-    k: int = 3,
+    k: int = 5,
     model: str = CHAT_MODEL,
 ) -> str:
     """
     ค้นหาข้อมูลที่เกี่ยวข้องแล้วถาม Ollama (ทำงานออฟไลน์)
+
+    กลยุทธ์การค้นหา (เรียงตามลำดับ):
+    1. ชื่อไฟล์ในคำถาม → metadata filter โดยตรง
+    2. Hybrid Search = Keyword (BM25-style) + Semantic → รวมด้วย RRF
 
     Args:
         vectorstore: FAISS instance
@@ -260,8 +322,53 @@ def ask(
     Returns:
         คำตอบจาก LLM
     """
-    # ดึง relevant chunks
-    results = vectorstore.similarity_search_with_score(question, k=k)
+    # ── 1. ตรวจชื่อไฟล์ในคำถาม → metadata filter ────────────────────
+    matched_source = _find_matching_source(vectorstore, question)
+
+    if matched_source:
+        print(f"\n📁 ตรวจพบชื่อไฟล์ → ดึงจาก: {Path(matched_source).name}")
+        all_docs = [
+            doc for doc in vectorstore.docstore._dict.values()
+            if doc.metadata.get("source", "") == matched_source
+        ]
+        results = [(doc, 0.0) for doc in all_docs[:k]]
+
+    else:
+        # ── 2. Hybrid Search: Keyword + Semantic ───────────────────────
+        fetch_k = k * 4  # ดึงมากกว่าเพื่อให้ RRF มีตัวเลือก
+
+        # Semantic search
+        sem_results = vectorstore.similarity_search_with_score(question, k=fetch_k)
+
+        # Keyword search
+        kw_results = _keyword_search(vectorstore, question, k=fetch_k)
+
+        # ── Reciprocal Rank Fusion (RRF) ───────────────────────────────
+        # แต่ละ doc จะได้ score = Σ 1/(rank + 60) จากทั้งสองรายการ
+        RRF_K = 60
+        doc_scores: dict[str, float] = {}
+        doc_map:    dict[str, object] = {}
+
+        def _doc_id(doc) -> str:
+            """ใช้ content เป็น id (FAISS ไม่มี stable id ง่าย ๆ)"""
+            return doc.page_content[:120]
+
+        for rank, (doc, _) in enumerate(sem_results):
+            did = _doc_id(doc)
+            doc_scores[did] = doc_scores.get(did, 0) + 1 / (rank + RRF_K)
+            doc_map[did] = doc
+
+        for rank, (doc, _) in enumerate(kw_results):
+            did = _doc_id(doc)
+            doc_scores[did] = doc_scores.get(did, 0) + 1 / (rank + RRF_K)
+            doc_map[did] = doc
+
+        # เรียงตาม RRF score (สูง = ดี)
+        top_ids = sorted(doc_scores, key=lambda d: doc_scores[d], reverse=True)[:k]
+        results = [(doc_map[did], doc_scores[did]) for did in top_ids]
+
+        mode = "🔀 Hybrid (Keyword + Semantic)"
+        print(f"\n   [{mode}]")
 
     if not results:
         return "ไม่พบข้อมูลที่เกี่ยวข้องใน knowledge base"
@@ -271,7 +378,9 @@ def ask(
     print(f"\n🔍 พบ {len(results)} chunks ที่เกี่ยวข้อง:")
     for doc, score in results:
         source = doc.metadata.get("source", "unknown")
-        print(f"   Score {score:.4f} | {Path(source).name}")
+        score_label = f"RRF {score:.4f}" if matched_source is None and score < 1 else \
+                      ("metadata match" if score == 0.0 else f"Score {score:.4f}")
+        print(f"   {score_label} | {Path(source).name}")
         context_parts.append(f"[จาก: {Path(source).name}]\n{doc.page_content}")
 
     context = "\n\n---\n\n".join(context_parts)
