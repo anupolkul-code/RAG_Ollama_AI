@@ -9,7 +9,7 @@
 
 - 📄 โหลดข้อมูลได้หลายรูปแบบ: **PDF, TXT, MD, DOCX, CSV, JSON, XLSX, URL**
 - 🔍 ค้นหาข้อมูลที่เกี่ยวข้องด้วย semantic search
-- 💬 ถามตอบผ่าน terminal แบบ interactive
+- 💬 ถามตอบผ่าน **Web UI** (เบราว์เซอร์) หรือ terminal แบบ interactive
 - 🔄 ตรวจจับไฟล์ใหม่อัตโนมัติ ไม่ embed ซ้ำ
 - 🌐 ดึงข้อมูลจากเว็บได้ (ต้องมีเน็ตครั้งแรก)
 - 🔒 ทำงาน offline ได้ทั้งหมดหลังจาก setup
@@ -57,7 +57,15 @@ ollama serve
 ```
 > เปิดค้างไว้ใน terminal แยก
 
-### ขั้นที่ 4: รันและถามคำถาม
+### ขั้นที่ 4: รันโปรแกรม
+
+**🌐 แบบ Web App (แนะนำ)** — เปิดเบราว์เซอร์ได้เลย
+```bash
+uv run .\app.py
+```
+แล้วเปิดเบราว์เซอร์ที่ **http://localhost:5000**
+
+**💻 แบบ Terminal** — ถามตอบผ่าน command line
 ```bash
 uv run .\chat.py
 ```
@@ -68,10 +76,14 @@ uv run .\chat.py
 
 ```
 RAG_Ollama/
-├── chat.py              ← ไฟล์หลัก: รันเพื่อถามคำถาม
+├── app.py               ← 🌐 Web App (Flask) — รันเพื่อเปิดเบราว์เซอร์
+├── chat.py              ← 💻 Terminal Chat — รันเพื่อถามคำถามใน terminal
 ├── rag_loader.py        ← library: load, embed, query
+├── web/                 ← หน้าเว็บ
+│   ├── index.html       ← หน้าหลัก
+│   ├── style.css        ← สไตล์ (Dark Mode)
+│   └── app.js           ← JavaScript
 ├── my_data/             ← 📌 วางไฟล์ข้อมูลของคุณที่นี่
-│   └── UBU.txt          ← ตัวอย่าง
 ├── my_knowledge_base/   ← สร้างอัตโนมัติ (ไม่ต้องแตะ)
 ├── pyproject.toml       ← dependencies
 └── uv.lock
@@ -97,6 +109,20 @@ MY_URLS = [
 
 ---
 
+## 🌐 การใช้งาน Web App
+
+หลังจากรัน `uv run .\app.py` และเปิดเบราว์เซอร์ที่ `http://localhost:5000` จะมี 3 แท็บ:
+
+| แท็บ | คำอธิบาย |
+|------|----------|
+| 💬 **ถามตอบ** | พิมพ์คำถาม กด Enter รับคำตอบจาก AI |
+| 📁 **จัดการไฟล์** | ลากวางไฟล์อัปโหลด, ดูสถานะ, ลบไฟล์ได้ |
+| ⚡ **Embed ข้อมูล** | กด embed ไฟล์ใหม่หรือ URL ทั้งหมด |
+
+> **หมายเหตุ:** ต้องเปิด `ollama serve` ไว้ใน terminal แยกก่อนเสมอ
+
+---
+
 ## ⚙️ การตั้งค่า Model
 
 แก้ได้ใน `rag_loader.py`:
@@ -117,3 +143,4 @@ CHAT_MODEL  = "scb10x/llama3.1-typhoon2-8b-instruct"     # chat model
 | `nomic-embed-text` | embedding model (via Ollama) |
 | `pypdf` | โหลด PDF |
 | `beautifulsoup4` | ดึงข้อมูลจากเว็บ |
+| `flask` | Web App server |
