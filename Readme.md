@@ -1,6 +1,6 @@
-# 🤖 RAG Ollama — Local Offline AI ที่เรียนรู้จากข้อมูลของคุณ
+# RAG Ollama — Local Offline AI
 
-ระบบ RAG (Retrieval-Augmented Generation) ที่ทำงานได้ **100% offline** บนเครื่องของคุณ  
+ระบบ RAG (Retrieval-Augmented Generation) ที่ทำงานได้ **100% offline** บนเครื่อง
 โดยใช้ [Ollama](https://ollama.com) เป็น LLM และ [FAISS](https://github.com/facebookresearch/faiss) เป็น vector database
 
 ---
@@ -83,8 +83,8 @@ RAG_Ollama/
 │   ├── index.html       ← หน้าหลัก
 │   ├── style.css        ← สไตล์ (Dark Mode)
 │   └── app.js           ← JavaScript
-├── my_data/             ← 📌 วางไฟล์ข้อมูลของคุณที่นี่
-├── my_knowledge_base/   ← สร้างอัตโนมัติ (ไม่ต้องแตะ)
+├── my_data/             ← วางไฟล์ข้อมูลที่นี่
+├── my_knowledge_base/   ← สร้างอัตโนมัติ
 ├── pyproject.toml       ← dependencies
 └── uv.lock
 ```
