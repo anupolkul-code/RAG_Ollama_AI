@@ -21,7 +21,7 @@
 ### 1. ติดตั้ง Ollama
 ดาวน์โหลดจาก [https://ollama.com](https://ollama.com) แล้วติดตั้ง
 
-### 2. ดาวน์โหลด model ที่ต้องการ
+### 2. ดาวน์โหลด model ที่ต้องการใช้
 ```bash
 # Model สำหรับสร้างคำตอบ (เลือก 1 อัน)
 ollama pull scb10x/llama3.1-typhoon2-8b-instruct   # ภาษาไทย แนะนำ
