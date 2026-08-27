@@ -22,7 +22,7 @@ import shutil
 from pathlib import Path
 from flask import Flask, request, jsonify, send_from_directory
 from werkzeug.utils import secure_filename
-from rag_loader import ask, load_vectorstore, ingest
+from rag_loader import ask, load_vectorstore, ingest, search_context, generate_answer
 
 app = Flask(__name__, static_folder="web", static_url_path="")
 
@@ -146,9 +146,57 @@ def api_status():
     })
 
 
+@app.route("/api/search", methods=["POST"])
+def api_search():
+    """ค้นหาข้อมูลที่เกี่ยวข้องจาก knowledge base (ส่งคืนแหล่งที่มา)"""
+    data = request.get_json()
+    question = (data or {}).get("question", "").strip()
+    if not question:
+        return jsonify({"error": "กรุณาพิมพ์คำถาม"}), 400
+
+    vs = get_vectorstore()
+    if vs is None:
+        return jsonify({"error": "ยังไม่มี knowledge base กรุณา embed ข้อมูลก่อน"}), 503
+
+    try:
+        results = search_context(vs, question)
+        if not results:
+            return jsonify({"sources": [], "context": ""})
+
+        sources = list(set([Path(doc.metadata.get("source", "unknown")).name for doc, score in results]))
+        
+        context_parts = []
+        for doc, score in results:
+            source = doc.metadata.get("source", "unknown")
+            context_parts.append(f"[จาก: {Path(source).name}]\n{doc.page_content}")
+            
+        context = "\n\n---\n\n".join(context_parts)
+        
+        return jsonify({"sources": sources, "context": context})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/generate", methods=["POST"])
+def api_generate():
+    """สร้างคำตอบจาก context ที่ให้มา"""
+    data = request.get_json()
+    question = (data or {}).get("question", "").strip()
+    context = (data or {}).get("context", "").strip()
+    
+    if not question:
+        return jsonify({"error": "กรุณาพิมพ์คำถาม"}), 400
+
+    try:
+        answer = generate_answer(question, context)
+        return jsonify({"answer": answer})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/chat", methods=["POST"])
 def api_chat():
-    """ตอบคำถามจาก knowledge base"""
+    """ตอบคำถามจาก knowledge base (แบบเดิม รวม search+generate)"""
     data = request.get_json()
     question = (data or {}).get("question", "").strip()
     if not question:

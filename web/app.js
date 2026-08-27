@@ -128,22 +128,47 @@ async function sendQuestion() {
   const typingEl = showTyping();
 
   try {
-    const res  = await fetch('/api/chat', {
+    // 1. ค้นหาข้อมูล (Search Phase)
+    const searchRes = await fetch('/api/search', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ question }),
     });
-    const data = await res.json();
+    const searchData = await searchRes.json();
+    
+    if (searchData.error) throw new Error(searchData.error);
+    
+    const context = searchData.context || "";
+    const sources = searchData.sources || [];
+    
+    // แสดงว่ากำลังอ่านจากไฟล์ไหน
+    const typingMeta = $('typingMeta');
+    if (typingMeta) {
+      if (sources.length > 0) {
+        typingMeta.innerHTML = `กำลังอ้างอิงข้อมูลจาก: <span style="color: var(--accent-2)">${sources.join(', ')}</span>...`;
+      } else {
+        typingMeta.textContent = "ไม่พบข้อมูลในระบบ กำลังตอบจากความรู้ทั่วไป...";
+      }
+    }
+    
+    // 2. สร้างคำตอบ (Generate Phase)
+    const genRes = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question, context }),
+    });
+    const genData = await genRes.json();
 
     typingEl.remove();
-    if (data.error) {
-      appendMessage('bot', `❌ ${data.error}`, true);
+    if (genData.error) {
+      appendMessage('bot', `❌ ${genData.error}`, true);
     } else {
-      appendMessage('bot', data.answer);
+      appendMessage('bot', genData.answer);
     }
   } catch (err) {
     typingEl.remove();
-    appendMessage('bot', '❌ ไม่สามารถเชื่อมต่อกับ server ได้ กรุณาตรวจสอบว่า app.py รันอยู่', true);
+    const msg = err.message || 'ไม่สามารถเชื่อมต่อกับ server ได้';
+    appendMessage('bot', `❌ ${msg}`, true);
   } finally {
     state.isLoading = false;
     $('sendBtn').disabled = false;
@@ -183,6 +208,7 @@ function showTyping() {
         <div class="typing-dot"></div>
         <div class="typing-dot"></div>
       </div>
+      <div class="msg-meta" id="typingMeta" style="text-align: left; margin-top: 6px; font-style: italic;">กำลังค้นหาข้อมูล...</div>
     </div>
   `;
   list.appendChild(el);

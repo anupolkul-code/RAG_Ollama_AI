@@ -300,29 +300,14 @@ def _keyword_search(
     return scored[:k]
 
 
-def ask(
+def search_context(
     vectorstore: FAISS,
     question: str,
     k: int = 5,
-    model: str = CHAT_MODEL,
-) -> str:
+) -> list[tuple]:
     """
-    ค้นหาข้อมูลที่เกี่ยวข้องแล้วถาม Ollama (ทำงานออฟไลน์)
-
-    กลยุทธ์การค้นหา (เรียงตามลำดับ):
-    1. ชื่อไฟล์ในคำถาม → metadata filter โดยตรง
-    2. Hybrid Search = Keyword (BM25-style) + Semantic → รวมด้วย RRF
-
-    Args:
-        vectorstore: FAISS instance
-        question   : คำถามของคุณ
-        k          : จำนวน chunks ที่ดึงมาใช้เป็น context
-        model      : Ollama model name
-
-    Returns:
-        คำตอบจาก LLM
+    ค้นหาข้อมูลที่เกี่ยวข้องจาก vectorstore
     """
-    # ── 1. ตรวจชื่อไฟล์ในคำถาม → metadata filter ────────────────────
     matched_source = _find_matching_source(vectorstore, question)
 
     if matched_source:
@@ -334,8 +319,8 @@ def ask(
         results = [(doc, 0.0) for doc in all_docs[:k]]
 
     else:
-        # ── 2. Hybrid Search: Keyword + Semantic ───────────────────────
-        fetch_k = k * 4  # ดึงมากกว่าเพื่อให้ RRF มีตัวเลือก
+        # Hybrid Search: Keyword + Semantic
+        fetch_k = k * 4
 
         # Semantic search
         sem_results = vectorstore.similarity_search_with_score(question, k=fetch_k)
@@ -343,14 +328,12 @@ def ask(
         # Keyword search
         kw_results = _keyword_search(vectorstore, question, k=fetch_k)
 
-        # ── Reciprocal Rank Fusion (RRF) ───────────────────────────────
-        # แต่ละ doc จะได้ score = Σ 1/(rank + 60) จากทั้งสองรายการ
+        # Reciprocal Rank Fusion (RRF)
         RRF_K = 60
         doc_scores: dict[str, float] = {}
         doc_map:    dict[str, object] = {}
 
         def _doc_id(doc) -> str:
-            """ใช้ content เป็น id (FAISS ไม่มี stable id ง่าย ๆ)"""
             return doc.page_content[:120]
 
         for rank, (doc, _) in enumerate(sem_results):
@@ -363,29 +346,19 @@ def ask(
             doc_scores[did] = doc_scores.get(did, 0) + 1 / (rank + RRF_K)
             doc_map[did] = doc
 
-        # เรียงตาม RRF score (สูง = ดี)
         top_ids = sorted(doc_scores, key=lambda d: doc_scores[d], reverse=True)[:k]
         results = [(doc_map[did], doc_scores[did]) for did in top_ids]
 
         mode = "🔀 Hybrid (Keyword + Semantic)"
         print(f"\n   [{mode}]")
 
-    if not results:
+    return results
+
+def generate_answer(question: str, context: str, model: str = CHAT_MODEL) -> str:
+    """ส่งคำถามและ context ไปให้ LLM สร้างคำตอบ"""
+    if not context.strip():
         return "ไม่พบข้อมูลที่เกี่ยวข้องใน knowledge base"
 
-    # แสดง chunks ที่พบ
-    context_parts = []
-    print(f"\n🔍 พบ {len(results)} chunks ที่เกี่ยวข้อง:")
-    for doc, score in results:
-        source = doc.metadata.get("source", "unknown")
-        score_label = f"RRF {score:.4f}" if matched_source is None and score < 1 else \
-                      ("metadata match" if score == 0.0 else f"Score {score:.4f}")
-        print(f"   {score_label} | {Path(source).name}")
-        context_parts.append(f"[จาก: {Path(source).name}]\n{doc.page_content}")
-
-    context = "\n\n---\n\n".join(context_parts)
-
-    # ถาม Ollama
     llm = ChatOllama(model=model)
     prompt = f"""คุณคือ assistant ที่ตอบคำถามจากข้อมูลที่ให้มาเท่านั้น
 ถ้าข้อมูลไม่เพียงพอ ให้บอกตามตรง อย่าเดาหรือแต่งเติม
@@ -396,9 +369,31 @@ def ask(
 คำถาม: {question}
 
 คำตอบ:"""
-
     response = llm.invoke(prompt)
     return response.content
+
+def ask(
+    vectorstore: FAISS,
+    question: str,
+    k: int = 5,
+    model: str = CHAT_MODEL,
+) -> str:
+    """
+    ค้นหาข้อมูลที่เกี่ยวข้องแล้วถาม Ollama (ทำงานออฟไลน์)
+    """
+    results = search_context(vectorstore, question, k)
+    if not results:
+        return "ไม่พบข้อมูลที่เกี่ยวข้องใน knowledge base"
+
+    context_parts = []
+    print(f"\n🔍 พบ {len(results)} chunks ที่เกี่ยวข้อง:")
+    for doc, score in results:
+        source = doc.metadata.get("source", "unknown")
+        print(f"   Score {score:.4f} | {Path(source).name}")
+        context_parts.append(f"[จาก: {Path(source).name}]\n{doc.page_content}")
+
+    context = "\n\n---\n\n".join(context_parts)
+    return generate_answer(question, context, model)
 
 
 # =============================================================================
